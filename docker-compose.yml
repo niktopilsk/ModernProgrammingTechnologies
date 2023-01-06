@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+    frontend:
+        container_name: frontend
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+        depends_on:
+            backend:
+                condition: service_healthy
+        ports:
+            - "3002:3002"
+        environment:
+            SERVER_ORIGIN: http://localhost:3001
+        depends_on:
+            backend:
+                condition: service_healthy
+
+    backend:
+        container_name: backend
+        build:
+            context: backend
+            dockerfile: Dockerfile
+        ports:
+            - "3001:3001"
+        environment:
+            MYSQL_HOST: database
+            JWT_SECRET_TOKEN: niktojwttoken
+            CORS_ORIGIN_REGEX: http([s])?:\/\/localhost
+        depends_on:
+            database:
+                condition: service_healthy
+        healthcheck:
+            test: curl --fail http://localhost:3001 || exit 1
+            interval: 2s
+            timeout: 30s
+            retries: 15
+
+    database: 
+        container_name: database
+        image: mysql:5.7
+        command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_general_ci
+        environment:
+            - MYSQL_ROOT_PASSWORD=root
+            - MYSQL_DATABASE=tradeoffer_db
+            - MYSQL_USER=nikto
+            - MYSQL_PASSWORD=nikto
+        healthcheck:
+            test: '/usr/bin/mysql --user=root --password=root --execute "SHOW DATABASES;"'
+            interval: 2s
+            timeout: 30s
+            retries: 15
+        ports:
+            - "3306:3306"
+        volumes:
+            - database_data:/var/lib/mysql
+        restart: always
+
+    adminer:
+        image: adminer
+        container_name: adminer
+        restart: always
+        ports:
+            - 8080:8080
+
+volumes:
+  database_data:
