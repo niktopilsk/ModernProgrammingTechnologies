@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helmapp.app.deployment.name" . }}
+  labels:
+    {{- include "helmapp.labels" . | nindent 4 }}
+    tier: app
+spec:
+  replicas: {{ .Values.app.deployment.replicas }}
+  selector:
+    matchLabels:
+      {{- include "helmapp.selectorLabels" . | nindent 6 }}
+      tier: app
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "helmapp.selectorLabels" . | nindent 8 }}
+        tier: app
+    spec:
+      serviceAccountName: {{ include "helmapp.serviceAccountName" . }}
+      containers:
+        - name: {{ include "helmapp.app.container.name" . }}
+          image: "{{ .Values.app.image.name }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - containerPort: 3002
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.app.container.resources | nindent 12 }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helmapp.app.service.name" . }}
+  labels:
+    {{- include "helmapp.labels" . | nindent 4 }}
+    tier: app
+spec:
+  ports:
+    - port: {{ .Values.app.service.port }}
+      protocol: TCP
+      targetPort: 3002
+      name: http
+  selector:
+    {{- include "helmapp.selectorLabels" . | nindent 4 }}
+    tier: app
+
+---
+
+{{- if .Values.app.hpa.enabled -}}
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "helmapp.app.hpa.name" . }}
+  labels:
+    {{- include "helmapp.labels" . | nindent 4 }}
+    tier: app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "helmapp.app.deployment.name" . }}
+  minReplicas: {{ .Values.app.hpa.minReplicas }}
+  maxReplicas: {{ .Values.app.hpa.maxReplicas }}
+  targetCPUUtilizationPercentage: {{ .Values.app.hpa.targetCPUUtilizationPercentage }}
+{{- end -}}

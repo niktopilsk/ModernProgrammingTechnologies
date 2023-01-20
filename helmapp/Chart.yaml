@@ -1,0 +1,8 @@
+apiVersion: v2
+name: helmapp
+version: 1.0.0
+description: Test project
+type: application
+maintainers:
+  - name: Nikita Topilskiy
+appVersion: 1.0.0
